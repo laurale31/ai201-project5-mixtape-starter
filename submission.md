@@ -27,6 +27,36 @@ now reads `elif days_since_last == 1`. The other two cases (listened today,
 or skipped a day) were correct and untouched. Verified that listening on
 Monday still correctly continues a Sunday streak.
 
+## Bug #4 — No notification when a friend rates my song
+
+**How I reproduced it:**
+Had one user rate a song shared by a different user, then checked the
+sharer's notifications via `GET /users/<id>/notifications`. The notification
+for the rating never appeared, even though rating a song is supposed to
+notify the original sharer.
+
+**How I found the root cause:**
+The README traced the call chain: `POST /songs/<id>/rate` →
+`notification_service.rate_song()`. I read that function and compared it
+line by line to `add_to_playlist()`, which handles a similar action.
+`add_to_playlist()` calls `create_notification()` after doing its work.
+`rate_song()` never did — that call was simply absent.
+
+**Root cause:**
+The `rate_song()` function correctly saves the rating to the database but
+never calls `create_notification()`. The notification infrastructure
+(the `create_notification()` helper, the Notification model, the
+notification_type field) all existed and worked correctly — the call
+was just missing entirely from `rate_song()`.
+
+**Fix and side-effect check:**
+Added a `create_notification()` call at the end of `rate_song()`, before
+the return statement, guarded by `if song.shared_by != user_id` so users
+don't get notified when they rate their own songs. This mirrors the exact
+same pattern used in `add_to_playlist()`. Verified that
+`get_notifications()` and `mark_as_read()` were unaffected.
+
+
 ## Bug #5 — The last song in a playlist never shows up
 
 **How I reproduced it:**
