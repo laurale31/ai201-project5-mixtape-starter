@@ -1,4 +1,56 @@
-## Bug #1 — Listening streak keeps resetting
+# Mixtape Bug Hunt — Submission
+
+---
+
+## Codebase Map
+
+### Main Files
+
+**`app.py`** — The Flask app factory. Creates and configures the app,
+connects the database, and registers the 4 route blueprints (songs,
+playlists, users, feed). Always started with
+`FLASK_APP=app:create_app flask run`.
+
+**`models.py`** — Defines all 6 SQLAlchemy database models:
+- `User` — has a username, listening streak counter, and last_listened_at
+  timestamp. Friends are a many-to-many self-join.
+- `Song` — belongs to a user (shared_by), has tags via a many-to-many
+  join table.
+- `ListeningEvent` — records when a user listened to a song, with a
+  timestamp.
+- `Rating` — a user's 1–5 score on a song. One rating per user/song pair
+  enforced by a unique constraint.
+- `Playlist` — has songs via playlist_entries, which adds a position
+  column for explicit ordering.
+- `Notification` — a message for a user with a type, body, and read flag.
+
+**`routes/`** — Four blueprint files (songs, playlists, users, feed).
+Each route does input parsing and response formatting only — all business
+logic is delegated immediately to a service function.
+
+**`services/`** — Five service files, one per feature area. All bugs live
+here.
+
+### Data Flow Example — User Rates a Song
+
+1. Client sends `POST /songs/<song_id>/rate` with a score
+2. `routes/songs.py` parses the user ID and score from the request
+3. It calls `notification_service.rate_song(user_id, song_id, score)`
+4. `rate_song()` validates the score, looks up the song and user,
+   saves or updates a Rating record, then (after the fix) calls
+   `create_notification()` to notify the song's original sharer
+5. The route returns the rating as JSON
+
+### Patterns I Noticed
+- Every route delegates immediately to a service — routes never touch
+  the database directly.
+- The `playlist_entries` association table has a `position` column,
+  meaning songs in a playlist have an explicit order, not just insertion
+  order.
+- Notifications are always created the same way: check if the actor is
+  different from the owner, then call `create_notification()`.
+
+---
 
 ## Bug #1 — Listening streak keeps resetting
 
@@ -27,7 +79,7 @@ now reads `elif days_since_last == 1`. The other two cases (listened today,
 or skipped a day) were correct and untouched. Verified that listening on
 Monday still correctly continues a Sunday streak.
 
-## Bug #4 — No notification when a friend rates my song
+## Bug #2 — No notification when a friend rates my song
 
 **How I reproduced it:**
 Had one user rate a song shared by a different user, then checked the
@@ -57,7 +109,7 @@ same pattern used in `add_to_playlist()`. Verified that
 `get_notifications()` and `mark_as_read()` were unaffected.
 
 
-## Bug #5 — The last song in a playlist never shows up
+## Bug #3 — The last song in a playlist never shows up
 
 **How I reproduced it:**
 Called `GET /playlists/<id>/songs` on any playlist with multiple songs.
@@ -82,3 +134,11 @@ Changed `songs[:-1]` to `songs` so all results are returned.
 Checked `get_playlist()` and `get_user_playlists()` — neither touches
 this slice, so they were unaffected. The query and ordering logic was
 correct all along; only the return statement was wrong.
+
+## AI Usage
+I used Claude (Anthropic) as an assistant during this project.
+Claude helped me understand what suspicious lines of code actually did
+(e.g. what Python's `weekday()` returns for each day of the week) and
+explained the difference between working and broken code paths.
+For each bug, I read and verified the root cause myself before making
+any changes. All fixes and RCA entries reflect my own understanding.
