@@ -1,3 +1,32 @@
+## Bug #1 — Listening streak keeps resetting
+
+## Bug #1 — Listening streak keeps resetting
+
+**How I reproduced it:**
+Triggered `record_listening_event()` for a user on a Saturday, then again
+on Sunday. Expected the streak to increment, but it reset to 1 instead.
+Any listen on a Sunday after a Saturday would break the streak.
+
+**How I found the root cause:**
+Followed the call chain: route → `streak_service.record_listening_event()`
+→ `update_listening_streak()`. Inside that function, the elif branch that
+increments the streak had an extra condition that looked suspicious:
+`today.weekday() != 6`
+
+**Root cause:**
+Python's `datetime.weekday()` returns 0 for Monday through 6 for Sunday.
+The condition `today.weekday() != 6` means "today is not Sunday."
+So even when a user listened on consecutive days (Saturday → Sunday),
+the increment branch was skipped because Sunday matched `weekday() == 6`,
+and the streak fell through to the else branch and reset to 1.
+Sunday was incorrectly treated as a streak-breaking day.
+
+**Fix and side-effect check:**
+Removed the `and today.weekday() != 6` condition entirely, so the branch
+now reads `elif days_since_last == 1`. The other two cases (listened today,
+or skipped a day) were correct and untouched. Verified that listening on
+Monday still correctly continues a Sunday streak.
+
 ## Bug #5 — The last song in a playlist never shows up
 
 **How I reproduced it:**
