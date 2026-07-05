@@ -51,6 +51,9 @@ here.
   different from the owner, then call `create_notification()`.
 
 ---
+## Screenshot
+<img width="582" height="172" alt="image" src="https://github.com/user-attachments/assets/25a1393e-5158-4da3-b9ab-f8b6d620343e" />
+
 
 ## Bug #1 — Listening streak keeps resetting
 
