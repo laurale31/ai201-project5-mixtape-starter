@@ -1,6 +1,13 @@
 # Mixtape Bug Hunt — Submission
 
 ---
+## AI Usage
+I used Claude (Anthropic) as an assistant during this project.
+Claude helped me understand what suspicious lines of code actually did
+(e.g. what Python's `weekday()` returns for each day of the week) and
+explained the difference between working and broken code paths.
+For each bug, I read and verified the root cause myself before making
+any changes. All fixes and RCA entries reflect my own understanding.
 
 ## Codebase Map
 
@@ -138,10 +145,3 @@ Checked `get_playlist()` and `get_user_playlists()` — neither touches
 this slice, so they were unaffected. The query and ordering logic was
 correct all along; only the return statement was wrong.
 
-## AI Usage
-I used Claude (Anthropic) as an assistant during this project.
-Claude helped me understand what suspicious lines of code actually did
-(e.g. what Python's `weekday()` returns for each day of the week) and
-explained the difference between working and broken code paths.
-For each bug, I read and verified the root cause myself before making
-any changes. All fixes and RCA entries reflect my own understanding.
